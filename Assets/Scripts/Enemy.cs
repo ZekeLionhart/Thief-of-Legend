@@ -7,7 +7,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] private Collider2D bodyCollider;
     [SerializeField] private Animator animator;
     [SerializeField] private EnemySight sight;
-    [SerializeField, InspectorName("Starting Behavior")] private EnemyState behaviorState = EnemyState.Patroling;
+    [SerializeField, InspectorName("Starting Behavior")] private EnemyState behaviorState = EnemyState.Patrol;
     [SerializeField] private float patrolSpeed;
     [SerializeField] private PatrolPoint[] patrolPoints;
     private Vector2 nextPatrolPoint;
@@ -24,21 +24,23 @@ public class Enemy : MonoBehaviour
 
     public enum EnemyState
     {
-        Patroling,
-        Alert,
-        Pursuing,
-        Searching
+        Patrol,
+        Attack,
+        Pursue,
+        Search
     }
 
     private void Awake()
     {
         nextPatrolPoint = new Vector2(patrolPoints[0].transform.position.x, body.position.y);
         player = GameObject.Find("Player");
+
+        if (behaviorState == EnemyState.Patrol) animator.SetTrigger("Move");
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.gameObject == patrolPoints[nextPatrolIndex].gameObject && behaviorState == EnemyState.Patroling)
+        if (collision.gameObject == patrolPoints[nextPatrolIndex].gameObject && behaviorState == EnemyState.Patrol)
         {
             StartCoroutine(ResolvePatrolPoint());
         }
@@ -48,16 +50,16 @@ public class Enemy : MonoBehaviour
     {
         switch (behaviorState)
         {
-            case EnemyState.Patroling:
+            case EnemyState.Patrol:
                 Patrol();
                 break;
-            case EnemyState.Alert:
-                LookAround();
+            case EnemyState.Attack:
+                Attack();
                 break;
-            case EnemyState.Pursuing:
+            case EnemyState.Pursue:
                 PursueTarget();
                 break;
-            case EnemyState.Searching:
+            case EnemyState.Search:
                 SearchForTarget();
                 break;
         }
@@ -68,7 +70,7 @@ public class Enemy : MonoBehaviour
         if (canMove)
             body.MovePosition(Vector2.MoveTowards(body.position, nextPatrolPoint, patrolSpeed * Time.fixedDeltaTime));
 
-        if (sight.CallSightCheck()) behaviorState = EnemyState.Pursuing;
+        if (sight.CallSightCheck()) { animator.SetTrigger("Detect"); behaviorState = EnemyState.Pursue; }
     }
 
     private void ToggleDirection()
@@ -85,12 +87,12 @@ public class Enemy : MonoBehaviour
     private IEnumerator ResolvePatrolPoint()
     {
         canMove = false;
-        animator.SetBool("IsColliding", true);
+        animator.SetBool("Move", false);
 
         yield return new WaitForSeconds(patrolPoints[nextPatrolIndex].WaitTime);
 
         canMove = true;
-        animator.SetBool("IsColliding", false);
+        animator.SetBool("Move", true);
 
         if (patrolPoints[nextPatrolIndex].TurnAround) ToggleDirection();
 
@@ -103,20 +105,22 @@ public class Enemy : MonoBehaviour
     {
         if (!sight.CallSightCheck())
         {
-            behaviorState = EnemyState.Patroling;
+            behaviorState = EnemyState.Patrol;
             return;
         }
 
         if (transform.position.x <= player.transform.position.x + 1
             && transform.position.x >= player.transform.position.x - 1)
         {
-            animator.SetBool("IsColliding", true);
-            //animator.SetTrigger("OnAttackCldwn");
+            animator.SetBool("Move", false);
+            canMove = false;
+
+            animator.SetBool("Attack", true);
+
             return;
         }
-
-        animator.SetBool("IsColliding", false);
-        body.MovePosition(Vector2.MoveTowards(body.position, player.transform.position, patrolSpeed * Time.fixedDeltaTime));
+        if (canMove)
+            body.MovePosition(Vector2.MoveTowards(body.position, player.transform.position, patrolSpeed * Time.fixedDeltaTime));
     }
 
     private void SearchForTarget()
@@ -124,7 +128,7 @@ public class Enemy : MonoBehaviour
 
     }
 
-    private void LookAround()
+    private void Attack()
     {
 
     }
@@ -133,13 +137,17 @@ public class Enemy : MonoBehaviour
 
     private IEnumerator AttackCooldown() 
     {
-        //canMove = false;
-        //canAttack = false;
-        yield return 1f;
+        canMove = false;
+        animator.SetBool("Attack", false);
+        yield return 2f;
 
-        animator.SetTrigger("OnAttackCldwn");
-        //canAttack = true;
+        if (transform.position.x <= player.transform.position.x + 1
+            && transform.position.x >= player.transform.position.x - 1)
+            animator.SetBool("Attack", true);
+        else
+        {
+            animator.SetBool("Move", true);
+            canMove = true;
+        }
     }
-
-    private void Attack() { }
 }
