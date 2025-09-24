@@ -26,6 +26,7 @@ public class Enemy : MonoBehaviour
     private Vector2 inspectionTarget;
     private int nextPatrolIndex = 0;
     private bool canMove = true;
+    private bool canAttack = true;
     private Direction lookDirection = Direction.Right;
     private GameObject player;
 
@@ -88,9 +89,9 @@ public class Enemy : MonoBehaviour
         if (canMove)
             body.velocity = new Vector2(Mathf.Sign(nextPatrolPoint.x - body.position.x) * patrolSpeed * Time.fixedDeltaTime, body.velocity.y);
 
-        if (sight.CallSightCheck()) 
-        { 
-            animator.SetTrigger("Detect"); 
+        if (sight.CallSightCheck())
+        {
+            animator.SetTrigger("Detect");
             behaviorState = EnemyState.Detect;
             inspectionTarget = player.transform.position;
         }
@@ -218,7 +219,7 @@ public class Enemy : MonoBehaviour
             && body.position.x >= player.transform.position.x - attackRange)
         {
             behaviorState = EnemyState.Attack;
-            animator.SetTrigger("Attack");
+            animator.SetTrigger("StartAttack");
             Attack();
             return;
         }
@@ -232,29 +233,43 @@ public class Enemy : MonoBehaviour
     {
         sight.CallSightCheck();
         ToggleDirection(player.transform.position.x);
-        //StartCoroutine(AttackCooldown());
+
+        if (body.position.x > player.transform.position.x + attackRange ||
+            body.position.x < player.transform.position.x - attackRange)
+        {
+            animator.SetTrigger("Pursue");
+            behaviorState = EnemyState.Pursue;
+            return;
+        }
+
+        if (!canAttack)
+            return;
+
+        animator.SetTrigger("Attack");
+        StartCoroutine(AttackCooldown());
     }
 
-    private IEnumerator AttackCooldown() 
+    private IEnumerator AttackCooldown()
     {
-        canMove = false;
-        //animator.SetBool("Attack", false);
+        canAttack = false;
+
         yield return new WaitForSeconds(attackCooldown);
 
-        if (body.position.x <= player.transform.position.x + attackRange
-            && body.position.x >= player.transform.position.x - attackRange)
-            animator.SetTrigger("Attack");
-        //animator.SetBool("Attack", true);
-        else
-        {
-            behaviorState = EnemyState.Pursue;
-            animator.SetTrigger("Pursue");
-            canMove = true;
-        }
+        canAttack = true;
     }
 
     private void DealDamage()
     {
 
+    }
+
+    private void ToggleMovementOn()
+    {
+        canMove = true;
+    }
+
+    private void ToggleMovementOff()
+    {
+        canMove = false;
     }
 }
