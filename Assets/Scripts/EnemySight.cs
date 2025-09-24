@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class EnemySight : MonoBehaviour
 {
-    //public bool PlayerInSight { get; private set; }
-
     [SerializeField] private Transform eyesOrigin;
     [SerializeField] private LayerMask collisionMask;
     [SerializeField] private float sightDistance;
@@ -11,6 +9,7 @@ public class EnemySight : MonoBehaviour
     private Transform playerHead;
     private Transform playerFeet;
     private int directionMod = 1;
+    private bool isPursuing = false;
 
     private void Awake()
     {
@@ -28,17 +27,22 @@ public class EnemySight : MonoBehaviour
         Vector2 origin = eyesOrigin.position;
         Vector2 targetDirection = (target.position - eyesOrigin.position).normalized;
         Vector2 sightDirection = new Vector2(sightDistance, 0f) * directionMod;
+
+        if (isPursuing) 
+        {
+            Vector2 toPlayer = (playerHead.transform.position - eyesOrigin.position).normalized;
+            sightDirection = toPlayer * sightDistance;
+        }
+
         Vector2 sight = origin + sightDirection;
 
         DrawFOV(origin, sight, sightDirection);
         
-        // Cast the ray
         RaycastHit2D hit = Physics2D.Raycast(origin, targetDirection, sightDistance, collisionMask);
 
         if (hit.collider == null)
         {
             Debug.DrawLine(origin, origin + targetDirection * sightDistance, Color.green);
-            //PlayerInSight = false;
             return false;
         }
 
@@ -46,12 +50,10 @@ public class EnemySight : MonoBehaviour
                  && Vector2.Angle((sight - origin).normalized, targetDirection) < fovAngle/2)
         {
             Debug.DrawLine(origin, hit.point, Color.red);
-            //PlayerInSight = true;
             return true;
         }
 
         Debug.DrawLine(origin, hit.point, Color.green);
-        //PlayerInSight = false;
         return false;
     }
 
@@ -72,5 +74,10 @@ public class EnemySight : MonoBehaviour
     {
         if (direction == Enemy.Direction.Left) { directionMod = -1; return; }
         if (direction == Enemy.Direction.Right) { directionMod = 1; return; }
+    }
+
+    public void SetPursuit(bool mode)
+    {
+        isPursuing = mode;
     }
 }

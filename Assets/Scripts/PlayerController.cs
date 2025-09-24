@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Score score;
     [SerializeField] private float speed = 40f;
     [SerializeField] private int maxHp = 10;
+    [SerializeField] private GameObject objectToSpawn;
     public float move = 0f;
     private bool jump = false;
     private int currentHp = 0;
@@ -79,7 +80,8 @@ public class PlayerController : MonoBehaviour
     private void HandleAttack()
     {
         if (Input.GetButtonDown("Fire1"))
-            animator.SetTrigger("Attack");
+            /*animator.SetTrigger("Attack");*/
+            Instantiate(objectToSpawn, transform.position, Quaternion.identity);
     }
 
     private void HandleMovementAnimation()
@@ -114,8 +116,7 @@ public class PlayerController : MonoBehaviour
     {
         currentHp += heal;
 
-        if (currentHp > maxHp)
-                                    currentHp = maxHp;
+        if (currentHp > maxHp) currentHp = maxHp;
 
         Actions.OnHealthChange(currentHp);
     }
