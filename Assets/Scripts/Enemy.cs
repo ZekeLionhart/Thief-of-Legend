@@ -1,20 +1,19 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UIElements;
-using static UnityEngine.GraphicsBuffer;
-using static UnityEngine.RuleTile.TilingRuleOutput;
 
 public class Enemy : MonoBehaviour
 {
     [SerializeField] private Rigidbody2D body;
     [SerializeField] private Collider2D bodyCollider;
+    [SerializeField] private Transform wallCheck;
+    [SerializeField] private LayerMask whatIsWall;
     [SerializeField] private Animator animator;
     [SerializeField] private EnemySight sight;
     [SerializeField, InspectorName("Starting Behavior")] private EnemyState behaviorState = EnemyState.Patrol;
     [SerializeField] private float patrolSpeed;
     [SerializeField] private float checkSpeed;
     [SerializeField] private float pursueSpeed;
+    [SerializeField] private float jumpForce;
     [SerializeField] private PatrolPoint[] patrolPoints;
     [SerializeField] private float alertTime;
     [SerializeField] private float attackRange;
@@ -27,6 +26,7 @@ public class Enemy : MonoBehaviour
     private int nextPatrolIndex = 0;
     private bool canMove = true;
     private bool canAttack = true;
+    private bool canJump = true;
     private Direction lookDirection = Direction.Right;
     private GameObject player;
 
@@ -64,6 +64,8 @@ public class Enemy : MonoBehaviour
 
     private void FixedUpdate()
     {
+        CheckWall();
+
         switch (behaviorState)
         {
             case EnemyState.Patrol:
@@ -271,5 +273,26 @@ public class Enemy : MonoBehaviour
     private void ToggleMovementOff()
     {
         canMove = false;
+    }
+
+    private void CheckWall()
+    {
+        if (!canJump) return;
+
+        if (Physics2D.OverlapCircle(wallCheck.position, .2f, whatIsWall))
+        {
+            body.AddForce(new Vector2(0f, jumpForce));
+
+            StartCoroutine(JumpCooldown());
+        }
+    }
+
+    private IEnumerator JumpCooldown()
+    {
+        canJump = false;
+
+        yield return new WaitForSeconds(2f);
+
+        canJump = true;
     }
 }
