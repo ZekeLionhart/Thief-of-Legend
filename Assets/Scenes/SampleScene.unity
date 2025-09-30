@@ -718,6 +718,14 @@ PrefabInstance:
       value: 125
       objectReference: {fileID: 0}
     - target: {fileID: 827300417825742858, guid: 5b3beaea652d1424f8c029b2d32cddf5, type: 3}
+      propertyPath: maxAlertTime
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 827300417825742858, guid: 5b3beaea652d1424f8c029b2d32cddf5, type: 3}
+      propertyPath: maxPursueTime
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 827300417825742858, guid: 5b3beaea652d1424f8c029b2d32cddf5, type: 3}
       propertyPath: attackCooldown
       value: 1
       objectReference: {fileID: 0}

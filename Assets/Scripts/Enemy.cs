@@ -3,32 +3,43 @@ using UnityEngine;
 
 public class Enemy : MonoBehaviour
 {
-    [SerializeField] private Rigidbody2D body;
-    [SerializeField] private Collider2D bodyCollider;
+    [Header("REFERENCES")]
+    [Space]
     [SerializeField] private Transform wallCheck;
     [SerializeField] private LayerMask whatIsWall;
-    [SerializeField] private Animator animator;
-    [SerializeField] private EnemySight sight;
-    [SerializeField, InspectorName("Starting Behavior")] private EnemyState behaviorState = EnemyState.Patrol;
+    [SerializeField, Space] private PatrolPoint[] patrolPoints;
+
+    [Space]
+    [Header("BEHAVIOR")]
+    [Space]
+    [SerializeField] private float maxAlertTime;
+    [SerializeField] private float maxPursueTime;
+    [SerializeField] private float attackRange;
+    [SerializeField] private float attackCooldown;
+    [SerializeField] private EnemyState behaviorState = EnemyState.Patrol;
+
+    [Space]
+    [Header("MOVEMENT")]
+    [Space]
     [SerializeField] private float patrolSpeed;
     [SerializeField] private float checkSpeed;
     [SerializeField] private float pursueSpeed;
     [SerializeField] private float jumpForce;
-    [SerializeField] private PatrolPoint[] patrolPoints;
-    [SerializeField] private float alertTime;
-    [SerializeField] private float attackRange;
-    [SerializeField] private float attackCooldown;
-    private float pursueTime = 2f;
-    private float startPursueTime = 0f;
-    private float startAlertTime;
+
+
+    private Rigidbody2D body;
+    private Animator animator;
+    private EnemySight sight;
+    private GameObject player;
+    private Direction lookDirection = Direction.Right;
     private Vector2 nextPatrolPoint;
     private Vector2 inspectionTarget;
+    private float startPursueTime = 0f;
+    private float startAlertTime;
     private int nextPatrolIndex = 0;
     private bool canMove = true;
     private bool canAttack = true;
     private bool canJump = true;
-    private Direction lookDirection = Direction.Right;
-    private GameObject player;
 
     public enum Direction
     {
@@ -48,8 +59,11 @@ public class Enemy : MonoBehaviour
 
     private void Awake()
     {
+        body = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
+        sight = transform.parent.GetComponent<EnemySight>();
+        player = GameObject.FindWithTag("Player");
         nextPatrolPoint = new Vector2(patrolPoints[0].transform.position.x, body.position.y);
-        player = GameObject.Find("Player");
 
         if (behaviorState == EnemyState.Patrol) animator.SetBool("Move", true);
     }
@@ -168,7 +182,7 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        if (Time.time - startAlertTime >= alertTime)
+        if (Time.time - startAlertTime >= maxAlertTime)
         {
             nextPatrolIndex = 0;
             nextPatrolPoint = new Vector2(patrolPoints[nextPatrolIndex].transform.position.x, body.position.y);
@@ -193,7 +207,7 @@ public class Enemy : MonoBehaviour
                 return;
             }
 
-            if (Time.time - startPursueTime < pursueTime)
+            if (Time.time - startPursueTime < maxPursueTime)
                 return;
 
             if (body.position.x >= inspectionTarget.x - 0.1f
