@@ -40,6 +40,9 @@ public class Enemy : MonoBehaviour
     private bool canMove = true;
     private bool canAttack = true;
     private bool canJump = true;
+    private bool isPlayerInSight;
+    private float internalClock;
+    private const float tickCooldown = 0.5f;
 
     public enum Direction
     {
@@ -64,6 +67,7 @@ public class Enemy : MonoBehaviour
         sight = transform.parent.GetComponent<EnemySight>();
         player = GameObject.FindWithTag("Player");
         nextPatrolPoint = new Vector2(patrolPoints[0].transform.position.x, body.position.y);
+        internalClock = Time.time;
 
         if (behaviorState == EnemyState.Patrol) animator.SetBool("Move", true);
     }
@@ -79,6 +83,12 @@ public class Enemy : MonoBehaviour
     private void FixedUpdate()
     {
         CheckWall();
+
+        if (Time.time - internalClock >= tickCooldown)
+        {
+            internalClock = Time.time;
+            isPlayerInSight = sight.CallSightCheck();
+        }
 
         switch (behaviorState)
         {
@@ -105,7 +115,7 @@ public class Enemy : MonoBehaviour
         if (canMove)
             body.velocity = new Vector2(Mathf.Sign(nextPatrolPoint.x - body.position.x) * patrolSpeed * Time.fixedDeltaTime, body.velocity.y);
 
-        if (sight.CallSightCheck())
+        if (isPlayerInSight)
         {
             animator.SetTrigger("Detect");
             behaviorState = EnemyState.Detect;
@@ -155,7 +165,7 @@ public class Enemy : MonoBehaviour
 
     private void Check()
     {
-        if (sight.CallSightCheck())
+        if (isPlayerInSight)
         {
             animator.SetTrigger("Pursue");
             behaviorState = EnemyState.Pursue;
@@ -175,7 +185,7 @@ public class Enemy : MonoBehaviour
 
     private void Search()
     {
-        if (sight.CallSightCheck())
+        if (isPlayerInSight)
         {
             animator.SetTrigger("Pursue");
             behaviorState = EnemyState.Pursue;
@@ -198,7 +208,7 @@ public class Enemy : MonoBehaviour
         if (canMove)
             body.velocity = new Vector2(Mathf.Sign(player.transform.position.x - body.position.x) * pursueSpeed * Time.fixedDeltaTime, body.velocity.y);
 
-        if (!sight.CallSightCheck())
+        if (!isPlayerInSight)
         {
             if (startPursueTime == 0f)
             {
@@ -247,7 +257,6 @@ public class Enemy : MonoBehaviour
 
     private void Attack()
     {
-        sight.CallSightCheck();
         ToggleDirection(player.transform.position.x);
 
         if (body.position.x > player.transform.position.x + attackRange ||

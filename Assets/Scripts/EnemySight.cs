@@ -10,13 +10,9 @@ public class EnemySight : MonoBehaviour
     private Transform playerFeet;
     private int directionMod = 1;
     private bool isPursuing = false;
-    private float internalClock;
-    private const float tickCooldown = 0.5f;
 
     private void Awake()
     {
-        internalClock = Time.time;
-
         if (playerHead == null) playerHead = GameObject.Find("Head").transform;
         if (playerFeet == null) playerFeet = GameObject.Find("Feet").transform;
     }
@@ -28,9 +24,6 @@ public class EnemySight : MonoBehaviour
 
     private bool CheckLineOfSight(Transform target)
     {
-        if (Time.time - internalClock < tickCooldown) return false;
-        internalClock = Time.time;
-
         Vector2 origin = eyesOrigin.position;
         Vector2 targetDirection = (target.position - eyesOrigin.position).normalized;
         Vector2 sightDirection = new Vector2(sightDistance, 0f) * directionMod;
