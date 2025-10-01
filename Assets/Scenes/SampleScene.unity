@@ -684,7 +684,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 0.1
+  m_Radius: 0.02
 --- !u!1001 &1144923880
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -731,6 +731,14 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 827300417825742858, guid: 5b3beaea652d1424f8c029b2d32cddf5, type: 3}
       propertyPath: whatIsWall.m_Bits
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 827300417825742858, guid: 5b3beaea652d1424f8c029b2d32cddf5, type: 3}
+      propertyPath: inspectionIndicator
+      value: 
+      objectReference: {fileID: 6791402088448862597, guid: dd9a8a496fee1f54b90a5e120c629a45, type: 3}
+    - target: {fileID: 827300417825742858, guid: 5b3beaea652d1424f8c029b2d32cddf5, type: 3}
+      propertyPath: whatIsGround.m_Bits
       value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 886247769549242896, guid: 5b3beaea652d1424f8c029b2d32cddf5, type: 3}
@@ -802,7 +810,7 @@ GameObject:
   - component: {fileID: 1259532667}
   m_Layer: 6
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1264,7 +1272,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 0.1
+  m_Radius: 0.02
 --- !u!1 &2026707000
 GameObject:
   m_ObjectHideFlags: 0
