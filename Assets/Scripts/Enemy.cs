@@ -84,7 +84,7 @@ public class Enemy : MonoBehaviour
     private void FixedUpdate()
     {
         CheckWall();
-
+        
         if (Time.time - internalClock >= tickCooldown)
         {
             internalClock = Time.time;
@@ -206,7 +206,10 @@ public class Enemy : MonoBehaviour
     private void Pursue()
     {
         if (canMove)
+        {
             body.velocity = new Vector2(Mathf.Sign(player.transform.position.x - body.position.x) * pursueSpeed * Time.fixedDeltaTime, body.velocity.y);
+            ToggleDirection(player.transform.position.x);
+        }
 
         if (!isPlayerInSight)
         {
@@ -238,8 +241,6 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        ToggleDirection(player.transform.position.x);
-
         if (IsWithinDistance(player.transform.position, attackRange))
         {
             behaviorState = EnemyState.Attack;
@@ -255,7 +256,8 @@ public class Enemy : MonoBehaviour
 
     private void Attack()
     {
-        ToggleDirection(player.transform.position.x);
+        if (canMove)
+            ToggleDirection(player.transform.position.x);
 
         if (!IsWithinDistance(player.transform.position, attackRange))
         {
