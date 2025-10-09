@@ -85,11 +85,11 @@ public class Enemy : MonoBehaviour
     {
         CheckWall();
         
-        if (Time.time - internalClock >= tickCooldown)
-        {
-            internalClock = Time.time;
+        //if (Time.time - internalClock >= tickCooldown)
+        //{
+        //    internalClock = Time.time;
             isPlayerInSight = sight.CallSightCheck();
-        }
+        //}
 
         switch (behaviorState)
         {
@@ -136,8 +136,6 @@ public class Enemy : MonoBehaviour
         lookDirection = (lookDirection == Direction.Right)
                     ? Direction.Left
                     : Direction.Right; //switches from left to right and vice versa
-
-        sight.SetDirection(lookDirection);
     }
 
     private IEnumerator ResolvePatrolPoint()
