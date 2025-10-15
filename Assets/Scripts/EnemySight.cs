@@ -11,10 +11,12 @@ public class EnemySight : MonoBehaviour
     [SerializeField] private FieldOfView fieldOfView;
     private Transform playerHead;
     private Transform playerFeet;
-    private bool isPursuing = false;
+    private bool isPlayerInSight = false;
+    private bool isInAlert = false;
     private Vector2 origin;
     private Vector2 targetDirection;
     private Vector2 fovDirection;
+    private Vector2 inspectionSpot;
 
     private void Awake()
     {
@@ -27,7 +29,6 @@ public class EnemySight : MonoBehaviour
     private void Update()
     {
         origin = eyesOrigin.position;
-        fovDirection = ((Vector2)sightDirection.position - origin).normalized;
     }
 
     private void LateUpdate()
@@ -48,6 +49,7 @@ public class EnemySight : MonoBehaviour
         if (hit.collider == null)
         {
             Debug.DrawLine(origin, origin + targetDirection * sightDistance, Color.green);
+            isPlayerInSight = false;
             return false;
         }
 
@@ -55,25 +57,31 @@ public class EnemySight : MonoBehaviour
             && Vector2.Angle(fovDirection, targetDirection) < fovAngle / 2)
         {
             Debug.DrawLine(origin, hit.point, Color.red);
+            isPlayerInSight = true;
             return true;
         }
 
         Debug.DrawLine(origin, hit.point, Color.green);
+        isPlayerInSight = false;
         return false;
     }
 
     private void DrawFOV()
     {
+        if (isPlayerInSight) fovDirection = ((Vector2)playerHead.transform.position - origin).normalized;
+        else if (isInAlert) fovDirection = (inspectionSpot - origin).normalized;
+        else fovDirection = ((Vector2)sightDirection.position - origin).normalized;
+
+        fieldOfView.SetAimDirection(fovDirection);
         fieldOfView.SetOrigin(origin);
-        if (isPursuing) fieldOfView.SetAimDirection(((Vector2)playerHead.transform.position - origin).normalized);
-        else fieldOfView.SetAimDirection(fovDirection);
         fieldOfView.FovAngle = fovAngle;
         fieldOfView.SightDistance = sightDistance;
         fieldOfView.RayCount = fovResolution;
     }
 
-    public void SetPursuit(bool mode)
+    public void SetAlert(bool mode, Vector2 spot)
     {
-        isPursuing = mode;
+        isInAlert = mode;
+        inspectionSpot = spot;
     }
 }

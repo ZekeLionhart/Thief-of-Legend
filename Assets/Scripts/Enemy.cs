@@ -43,7 +43,7 @@ public class Enemy : MonoBehaviour
     private bool canJump = true;
     private bool isPlayerInSight;
     private float internalClock;
-    private const float tickCooldown = 0.5f;
+    private const float tickCooldown = 0.0f;
 
     public enum Direction
     {
@@ -81,15 +81,18 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (Time.time - internalClock >= tickCooldown)
+        {
+            internalClock = Time.time;
+            isPlayerInSight = sight.CallSightCheck();
+        }
+    }
+
     private void FixedUpdate()
     {
         CheckWall();
-        
-        //if (Time.time - internalClock >= tickCooldown)
-        //{
-        //    internalClock = Time.time;
-            isPlayerInSight = sight.CallSightCheck();
-        //}
 
         switch (behaviorState)
         {
@@ -118,6 +121,7 @@ public class Enemy : MonoBehaviour
 
         if (isPlayerInSight)
         {
+            sight.SetAlert(true, inspectionTarget);
             animator.SetTrigger("Detect");
             behaviorState = EnemyState.Detect;
             CreateInspectionPoint();
@@ -168,6 +172,7 @@ public class Enemy : MonoBehaviour
         {
             animator.SetTrigger("Pursue");
             behaviorState = EnemyState.Pursue;
+            sight.SetAlert(false, inspectionTarget);
             return;
         }
 
@@ -176,6 +181,7 @@ public class Enemy : MonoBehaviour
         if (IsWithinDistance(inspectionTarget, 1f))
         {
             startAlertTime = Time.time;
+            sight.SetAlert(true, inspectionTarget);
             animator.SetTrigger("Search");
             behaviorState = EnemyState.Search;
         }
@@ -185,6 +191,7 @@ public class Enemy : MonoBehaviour
     {
         if (isPlayerInSight)
         {
+            sight.SetAlert(true, inspectionTarget);
             animator.SetTrigger("Pursue");
             behaviorState = EnemyState.Pursue;
             return;
@@ -196,6 +203,7 @@ public class Enemy : MonoBehaviour
             nextPatrolPoint = new Vector2(patrolPoints[nextPatrolIndex].transform.position.x, body.position.y);
             ToggleDirection(nextPatrolPoint.x);
             canMove = true;
+            sight.SetAlert(false, inspectionTarget);
             animator.SetTrigger("Return");
             behaviorState = EnemyState.Patrol;
         }
@@ -203,6 +211,8 @@ public class Enemy : MonoBehaviour
 
     private void Pursue()
     {
+        sight.SetAlert(true, inspectionTarget);
+
         if (canMove)
         {
             body.velocity = new Vector2(Mathf.Sign(player.transform.position.x - body.position.x) * pursueSpeed * Time.fixedDeltaTime, body.velocity.y);
@@ -211,6 +221,7 @@ public class Enemy : MonoBehaviour
 
         if (!isPlayerInSight)
         {
+
             if (startPursueTime == 0f)
             {
                 CreateInspectionPoint();
@@ -225,31 +236,30 @@ public class Enemy : MonoBehaviour
             {
                 startPursueTime = 0f;
                 startAlertTime = Time.time;
-                behaviorState = EnemyState.Search;
+                sight.SetAlert(true, inspectionTarget);
                 animator.SetTrigger("Search");
-                sight.SetPursuit(false);
+                behaviorState = EnemyState.Search;
                 return;
             }
 
 
             startPursueTime = 0f;
-            behaviorState = EnemyState.Check;
+            sight.SetAlert(true, inspectionTarget);
             animator.SetTrigger("LostSight");
-            sight.SetPursuit(false);
+            behaviorState = EnemyState.Check;
             return;
         }
 
-        if (IsWithinDistance(player.transform.position, attackRange))
+        if (IsWithinAttackRange())
         {
-            behaviorState = EnemyState.Attack;
+            sight.SetAlert(true, inspectionTarget);
             animator.SetTrigger("StartAttack");
+            behaviorState = EnemyState.Attack;
             Attack();
             return;
         }
 
         CreateInspectionPoint();
-
-        sight.SetPursuit(true);
     }
 
     private void Attack()
@@ -257,8 +267,9 @@ public class Enemy : MonoBehaviour
         if (canMove)
             ToggleDirection(player.transform.position.x);
 
-        if (!IsWithinDistance(player.transform.position, attackRange))
+        if (!IsWithinAttackRange())
         {
+            sight.SetAlert(true, inspectionTarget);
             animator.SetTrigger("Pursue");
             behaviorState = EnemyState.Pursue;
             return;
@@ -318,16 +329,22 @@ public class Enemy : MonoBehaviour
 
     private bool IsWithinDistance(Vector2 target, float range)
     {
-        Vector2 toPlayer = target - body.position;
-        return toPlayer.sqrMagnitude <= range * range;
+        Vector2 toTarget = new Vector2(target.x, body.position.y) - body.position;
+        return toTarget.sqrMagnitude <= range * range;
+    }
+
+    private bool IsWithinAttackRange()
+    {
+        Vector2 toTarget = (Vector2)player.transform.position - body.position;
+        return toTarget.sqrMagnitude <= attackRange * attackRange;
     }
 
     private void CreateInspectionPoint()
     {
-        Vector2 lastSeenPos = player.transform.position;
+        Vector2 lastSeenPos = (Vector2)player.transform.position + new Vector2(0f, 0.5f);
 
         RaycastHit2D hit = Physics2D.Raycast(lastSeenPos, Vector2.down, Mathf.Infinity, whatIsWall);
-        if (hit.collider != null) lastSeenPos = hit.point;
+        if (hit.collider != null) lastSeenPos = hit.point + new Vector2(0f, 0.5f);
 
         inspectionTarget = lastSeenPos;
         GameObject spot = Instantiate(inspectionIndicator, inspectionTarget, Quaternion.identity);
