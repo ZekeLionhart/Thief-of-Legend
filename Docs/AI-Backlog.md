@@ -28,6 +28,8 @@ The guard patrols between points. An initial sighting makes him pause, investiga
 
 ## Technical cleanup
 
+- [ ] **AI-12 — Diagnose intermittent skipped downward jumps.** Reported October 29, 2026: guard patrols the upper platform, detects Robin to the lower left, ignores the left patrol point during investigation, and reaches the downward jump trigger. Sometimes he jumps; sometimes he runs through and falls. He subsequently searches, returns, and consistently uses the separate upward jump connection. Not reproduced by the assistant. Inspect rejection reasons before changing behavior: `canMove` can remain false after an interrupted patrol wait even though `Check()` moves unconditionally; the ground check has radius `0.01` and may miss support near the edge; jump pads are attempted only on trigger entry, so a rejected attempt is not retried while overlapping. Log grounded status, state, movement permission, jumping status, and height/speed rejection at the failed attempt. Distinguish no trigger callback, rejected launch, and a launch that immediately lands on the starting platform.
+
 - [ ] **AI-10 — Use consistent units for movement speed.** Enemy movement assigns Rigidbody velocity multiplied by `Time.fixedDeltaTime`. This makes configured speeds depend on the physics timestep. Explain velocity versus displacement before changing it, and retune Inspector values if corrected.
 - [ ] **AI-11 — Separate remembered positions from debug marker creation.** `CreateInspectionPoint()` both updates memory and instantiates an indicator. Visible pursuit can create one marker per physics update, each lasting three seconds. Keep memory updates independent from how often debug markers are displayed.
 

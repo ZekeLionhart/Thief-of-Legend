@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private CharacterController2D controller;
     [SerializeField] private Animator animator;
     [SerializeField] private SpriteRenderer sprtRendr;
-    [SerializeField] private Transform respawn;
+    [SerializeField] private UnityEngine.Transform respawn;
     [SerializeField] private Score score;
     [SerializeField] private float speed = 40f;
     [SerializeField] private int maxHp = 10;

@@ -984,8 +984,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71165f68864f54f43a5036d6d381f1ad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  wallCheck: {fileID: 2437329118626014523}
-  whatIsWall:
+  groundCheck: {fileID: 8210598982927194064}
+  groundCheckRadius: 0.01
+  groundMask:
     serializedVersion: 2
     m_Bits: 8
   inspectionIndicator: {fileID: 6791402088448862597, guid: dd9a8a496fee1f54b90a5e120c629a45, type: 3}
@@ -1000,7 +1001,8 @@ MonoBehaviour:
   patrolSpeed: 75
   checkSpeed: 100
   pursueSpeed: 125
-  jumpForce: 800
+  jumpClearance: 0.5
+  landingOffset: 0.5
 --- !u!95 &353308061834593914
 Animator:
   serializedVersion: 5
@@ -2717,7 +2719,7 @@ Transform:
   m_GameObject: {fileID: 9201836220272512032}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.19, y: -0.016, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -2,15 +2,15 @@ using UnityEngine;
 
 public class EnemySight : MonoBehaviour
 {
-    [SerializeField] private Transform eyesOrigin;
-    [SerializeField] private Transform sightDirection;
+    [SerializeField] private UnityEngine.Transform eyesOrigin;
+    [SerializeField] private UnityEngine.Transform sightDirection;
     [SerializeField] private LayerMask collisionMask;
     [SerializeField] private float sightDistance;
     [SerializeField] private float fovAngle;
     [SerializeField] private int fovResolution;
     [SerializeField] private FieldOfView fieldOfView;
-    private Transform playerHead;
-    private Transform playerFeet;
+    private UnityEngine.Transform playerHead;
+    private UnityEngine.Transform playerFeet;
     private bool isPlayerInSight = false;
     private bool isInAlert = false;
     private Vector2 origin;
@@ -41,7 +41,7 @@ public class EnemySight : MonoBehaviour
         return CheckLineOfSight(playerHead) || CheckLineOfSight(playerFeet);
     }
 
-    private bool CheckLineOfSight(Transform target)
+    private bool CheckLineOfSight(UnityEngine.Transform target)
     {
         targetDirection = ((Vector2)target.position - origin).normalized;
         RaycastHit2D hit = Physics2D.Raycast(origin, targetDirection, sightDistance, collisionMask);

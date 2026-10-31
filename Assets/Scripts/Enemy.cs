@@ -5,8 +5,9 @@ public class Enemy : MonoBehaviour
 {
     [Header("REFERENCES")]
     [Space]
-    [SerializeField] private Transform wallCheck;
-    [SerializeField] private LayerMask whatIsWall;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private float groundCheckRadius = 0.01f;
+    [SerializeField] private LayerMask groundMask;
     [SerializeField] private GameObject inspectionIndicator;
     [SerializeField, Space] private PatrolPoint[] patrolPoints;
 
@@ -17,7 +18,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float maxPursueTime;
     [SerializeField] private float attackRange;
     [SerializeField] private float attackCooldown;
-    [SerializeField] private EnemyState behaviorState = EnemyState.Patrol;
+    [SerializeField] private EnemyState behaviorState = EnemyState.PatrolMove;
 
     [Space]
     [Header("MOVEMENT")]
@@ -25,8 +26,10 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float patrolSpeed;
     [SerializeField] private float checkSpeed;
     [SerializeField] private float pursueSpeed;
-    [SerializeField] private float jumpForce;
-
+    [SerializeField] private float jumpClearance = 0.5f;
+    [SerializeField] private float landingOffset = 0.5f;
+    [SerializeField] private float maxJumpHeight = 3.5f;
+    [SerializeField] private float maxJumpHorizontalSpeed = 6f;
 
     private Rigidbody2D body;
     private Animator animator;
@@ -38,10 +41,10 @@ public class Enemy : MonoBehaviour
     private float startPursueTime = 0f;
     private float startAlertTime;
     private int nextPatrolIndex = 0;
-    private bool canMove = true;
-    private bool canAttack = true;
-    private bool canJump = true;
+    private bool isJumping;
     private bool isPlayerInSight;
+    private float patrolWaitEndTime;
+    private float attackCooldownEndTime;
     private float internalClock;
     private const float tickCooldown = 0.0f;
 
@@ -53,12 +56,14 @@ public class Enemy : MonoBehaviour
 
     public enum EnemyState
     {
-        Patrol,
+        PatrolMove,
+        PatrolIdle,
         Detect,
         Check,
         Search,
         Pursue,
-        Attack
+        Attack,
+        AttackCooldown
     }
 
     private void Awake()
@@ -70,14 +75,52 @@ public class Enemy : MonoBehaviour
         nextPatrolPoint = new(patrolPoints[0].transform.position.x, body.position.y);
         internalClock = Time.time;
 
-        if (behaviorState == EnemyState.Patrol) animator.SetBool("Move", true);
+        if (behaviorState == EnemyState.PatrolMove) animator.SetBool("Move", true);
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.gameObject == patrolPoints[nextPatrolIndex].gameObject && behaviorState == EnemyState.Patrol)
+        if (isJumping) return;
+
+        if (collision.CompareTag("JumpPad"))
         {
-            StartCoroutine(ResolvePatrolPoint());
+            JumpPad jumpPad = collision.GetComponent<JumpPad>();
+            Jump(jumpPad.GetLandingPad);
+        }
+    }
+
+    private void OnTriggerStay2D(Collider2D collision)
+    {
+        if (isJumping || behaviorState != EnemyState.PatrolMove)
+            return;
+
+        if (collision.gameObject != patrolPoints[nextPatrolIndex].gameObject)
+            return;
+
+        if (!Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundMask))
+            return;
+
+        body.velocity = new Vector2(0f, body.velocity.y);
+        animator.SetBool("Move", false);
+
+        patrolWaitEndTime = Time.time + patrolPoints[nextPatrolIndex].WaitTime;
+
+        behaviorState = EnemyState.PatrolIdle;
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (!isJumping || body.velocity.y > 0f) return;
+
+        if ((groundMask.value & (1 << collision.gameObject.layer)) == 0) return;
+
+        foreach (ContactPoint2D contact in collision.contacts)
+        {
+            if (contact.normal.y > 0.5f)
+            {
+                isJumping = false;
+                break;
+            }
         }
     }
 
@@ -92,12 +135,15 @@ public class Enemy : MonoBehaviour
 
     private void FixedUpdate()
     {
-        CheckWall();
+        if (isJumping) return;
 
         switch (behaviorState)
         {
-            case EnemyState.Patrol:
-                Patrol();
+            case EnemyState.PatrolMove:
+                PatrolMove();
+                break;
+            case EnemyState.PatrolIdle:
+                PatrolIdle();
                 break;
             case EnemyState.Check:
                 Check();
@@ -109,24 +155,53 @@ public class Enemy : MonoBehaviour
                 Pursue();
                 break;
             case EnemyState.Attack:
-                Attack();
+                //Called by the animation
+                break;
+            case EnemyState.AttackCooldown:
+                AttackCooldown();
                 break;
         }
     }
 
-    private void Patrol()
+    private void PatrolMove()
     {
-        if (canMove)
-            body.velocity = new Vector2(Mathf.Sign(nextPatrolPoint.x - body.position.x) * patrolSpeed * Time.fixedDeltaTime, body.velocity.y);
+        Move(nextPatrolPoint, patrolSpeed);
+        CheckForPlayer();
+    }
 
-        if (isPlayerInSight)
-        {
-            body.velocity = new(0f, body.velocity.y);
-            CreateInspectionPoint();
-            sight.SetAlert(true, inspectionTarget);
-            animator.SetTrigger("Detect");
-            behaviorState = EnemyState.Detect;
-        }
+    private void PatrolIdle()
+    {
+        CheckForPlayer();
+
+        if (behaviorState != EnemyState.PatrolIdle)
+            return;
+
+        if (Time.time < patrolWaitEndTime)
+            return;
+
+        nextPatrolIndex = (nextPatrolIndex + 1) % patrolPoints.Length;
+
+        nextPatrolPoint = new Vector2(
+            patrolPoints[nextPatrolIndex].transform.position.x,
+            body.position.y);
+
+        if (patrolPoints[nextPatrolIndex].TurnAround)
+            ToggleDirection(nextPatrolPoint.x);
+
+        animator.SetBool("Move", true);
+        behaviorState = EnemyState.PatrolMove;
+    }
+
+    private void CheckForPlayer()
+    {
+        if (!isPlayerInSight)
+            return;
+
+        body.velocity = new Vector2(0f, body.velocity.y);
+        CreateInspectionPoint();
+        sight.SetAlert(true, inspectionTarget);
+        animator.SetTrigger("Detect");
+        behaviorState = EnemyState.Detect;
     }
 
     private void ToggleDirection(float target)
@@ -141,26 +216,6 @@ public class Enemy : MonoBehaviour
         lookDirection = (lookDirection == Direction.Right)
                     ? Direction.Left
                     : Direction.Right; //switches from left to right and vice versa
-    }
-
-    private IEnumerator ResolvePatrolPoint()
-    {
-        canMove = false;
-        body.velocity = new(0f, body.velocity.y);
-        animator.SetBool("Move", false);
-
-        yield return new WaitForSeconds(patrolPoints[nextPatrolIndex].WaitTime);
-
-        if (behaviorState != EnemyState.Patrol) yield break;
-
-        canMove = true;
-        animator.SetBool("Move", true);
-
-        nextPatrolIndex = (nextPatrolIndex + 1) % patrolPoints.Length; //cycles back to 0 if it goes over the limit
-
-        nextPatrolPoint = new Vector2(patrolPoints[nextPatrolIndex].transform.position.x, body.position.y);
-
-        if (patrolPoints[nextPatrolIndex].TurnAround) ToggleDirection(nextPatrolPoint.x);
     }
 
     public void CallCheckState()
@@ -178,7 +233,7 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        body.velocity = new(Mathf.Sign(inspectionTarget.x - body.position.x) * checkSpeed * Time.fixedDeltaTime, body.velocity.y);
+        Move(inspectionTarget, checkSpeed);
 
         if (IsWithinDistance(inspectionTarget, 1f))
         {
@@ -205,11 +260,10 @@ public class Enemy : MonoBehaviour
             nextPatrolIndex = 0;
             nextPatrolPoint = new Vector2(patrolPoints[nextPatrolIndex].transform.position.x, body.position.y);
             ToggleDirection(nextPatrolPoint.x);
-            canMove = true;
             animator.SetBool("Move", true);
             animator.SetTrigger("Return");
             sight.SetAlert(false, inspectionTarget);
-            behaviorState = EnemyState.Patrol;
+            behaviorState = EnemyState.PatrolMove;
         }
     }
 
@@ -223,11 +277,8 @@ public class Enemy : MonoBehaviour
 
         sight.SetAlert(true, inspectionTarget);
 
-        if (canMove)
-        {
-            body.velocity = new(Mathf.Sign(inspectionTarget.x - body.position.x) * pursueSpeed * Time.fixedDeltaTime, body.velocity.y);
-            ToggleDirection(inspectionTarget.x);
-        }
+        Move(inspectionTarget, pursueSpeed);
+        ToggleDirection(inspectionTarget.x);
 
         if (!isPlayerInSight)
         {
@@ -263,16 +314,40 @@ public class Enemy : MonoBehaviour
         {
             sight.SetAlert(true, inspectionTarget);
             animator.SetTrigger("StartAttack");
-            behaviorState = EnemyState.Attack;
-            Attack();
+            BeginAttack();
             return;
         }
     }
 
-    private void Attack()
+    private void Move(Vector2 destination, float speed)
     {
-        if (canMove)
-            ToggleDirection(player.transform.position.x);
+        if (isJumping) return;
+
+        body.velocity = new Vector2(
+            Mathf.Sign(destination.x - body.position.x) * speed * Time.fixedDeltaTime,
+            body.velocity.y);
+    }
+
+    private void BeginAttack()
+    {
+        body.velocity = new Vector2(0f, body.velocity.y);
+        behaviorState = EnemyState.Attack;
+        animator.SetTrigger("Attack");
+    }
+
+    public void EnterAttackCooldown()
+    {
+        if (behaviorState != EnemyState.Attack) return;
+
+        body.velocity = new Vector2(0f, body.velocity.y);
+
+        attackCooldownEndTime = Time.time + attackCooldown;
+        behaviorState = EnemyState.AttackCooldown;
+    }
+
+    private void AttackCooldown()
+    {
+        ToggleDirection(player.transform.position.x);
 
         if (!IsWithinAttackRange())
         {
@@ -282,56 +357,13 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        if (!canAttack)
-            return;
-
-        animator.SetTrigger("Attack");
-        StartCoroutine(AttackCooldown());
-    }
-
-    private IEnumerator AttackCooldown()
-    {
-        canAttack = false;
-
-        yield return new WaitForSeconds(attackCooldown);
-
-        canAttack = true;
+        if (Time.time >= attackCooldownEndTime)
+            BeginAttack();
     }
 
     private void DealDamage()
     {
 
-    }
-
-    private void ToggleMovementOn()
-    {
-        canMove = true;
-    }
-
-    private void ToggleMovementOff()
-    {
-        canMove = false;
-    }
-
-    private void CheckWall()
-    {
-        if (!canJump) return;
-
-        if (Physics2D.OverlapCircle(wallCheck.position, .2f, whatIsWall))
-        {
-            body.AddForce(new Vector2(0f, jumpForce));
-
-            StartCoroutine(JumpCooldown());
-        }
-    }
-
-    private IEnumerator JumpCooldown()
-    {
-        canJump = false;
-
-        yield return new WaitForSeconds(2f);
-
-        canJump = true;
     }
 
     private bool IsWithinDistance(Vector2 target, float range)
@@ -350,11 +382,58 @@ public class Enemy : MonoBehaviour
     {
         Vector2 lastSeenPos = (Vector2)player.transform.position + new Vector2(0f, 0.5f);
 
-        RaycastHit2D hit = Physics2D.Raycast(lastSeenPos, Vector2.down, Mathf.Infinity, whatIsWall);
+        RaycastHit2D hit = Physics2D.Raycast(lastSeenPos, Vector2.down, Mathf.Infinity, groundMask);
         if (hit.collider != null) lastSeenPos = hit.point + new Vector2(0f, 0.5f);
 
         inspectionTarget = lastSeenPos;
         GameObject spot = Instantiate(inspectionIndicator, inspectionTarget, Quaternion.identity);
         Destroy(spot, 3f);
+    }
+
+    public void Jump(Transform jumpTarget)
+    {
+        if (!Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundMask)
+            || isJumping || jumpTarget == null)
+            return;
+
+        bool movingState = behaviorState == EnemyState.PatrolMove
+            || behaviorState == EnemyState.Check
+            || behaviorState == EnemyState.Pursue;
+
+        if (!movingState) return;
+
+        Vector2 destination = (Vector2)jumpTarget.position + Vector2.up * landingOffset;
+        float requiredRise = Mathf.Max(0f, destination.y - body.position.y) + jumpClearance;
+        
+        if (requiredRise > maxJumpHeight) return;
+        
+        Vector2 launchVelocity = CalculateJumpVelocity(destination);
+        Debug.Log(launchVelocity.x + " vs " + maxJumpHorizontalSpeed);
+        if (Mathf.Abs(launchVelocity.x) > maxJumpHorizontalSpeed) return;
+
+        ToggleDirection(destination.x);
+
+        isJumping = true;
+        body.velocity = CalculateJumpVelocity(destination);
+    }
+
+    private Vector2 CalculateJumpVelocity(Vector2 destination)
+    {
+        float gravity = -(Physics2D.gravity.y * body.gravityScale);
+
+        float apexY = Mathf.Max(body.position.y, destination.y) + jumpClearance;
+
+        float riseHeight = apexY - body.position.y;
+        float fallHeight = apexY - destination.y;
+
+        float verticalSpeed = Mathf.Sqrt(2f * gravity * riseHeight);
+
+        float riseTime = verticalSpeed / gravity;
+        float fallTime = Mathf.Sqrt(2f * fallHeight / gravity);
+        float flightTime = riseTime + fallTime;
+
+        float horizontalSpeed = (destination.x - body.position.x) / flightTime;
+
+        return new Vector2(horizontalSpeed, verticalSpeed);
     }
 }
